@@ -1,0 +1,9 @@
+com/hikaricraft/vehicle/listener/MinecartPlacementListener.class
+com/hikaricraft/vehicle/manager/VehicleManager$1.class
+com/hikaricraft/vehicle/HikariVehicle.class
+com/hikaricraft/vehicle/manager/VehicleManager.class
+com/hikaricraft/vehicle/config/ConfigManager.class
+com/hikaricraft/vehicle/manager/VehicleManager$CollisionRecord.class
+com/hikaricraft/vehicle/manager/VehicleManager$VehicleInput.class
+com/hikaricraft/vehicle/model/VehicleData.class
+com/hikaricraft/vehicle/listener/VehicleListener.class

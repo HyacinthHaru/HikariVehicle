@@ -1,0 +1,21 @@
+name: HikariVehicle
+version: 1.0.3
+main: com.hikaricraft.vehicle.HikariVehicle
+api-version: '1.21'
+description: A ground vehicle plugin using minecarts
+authors:
+  - HikariCraft
+
+commands:
+  hv:
+    description: HikariVehicle main command
+    usage: /<command> [reload]
+    permission: hikarivehicle.admin
+
+permissions:
+  hikarivehicle.admin:
+    description: Admin permission for HikariVehicle
+    default: op
+  hikarivehicle.drive:
+    description: Permission to drive vehicles
+    default: true

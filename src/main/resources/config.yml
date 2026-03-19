@@ -1,0 +1,148 @@
+# ========================================
+#   HikariVehicle Configuration
+# ========================================
+
+# Language settings
+# Available: zh_cn (简体中文), en_us (English)
+language: zh_cn
+
+# Vehicle movement settings
+movement:
+  # Maximum speed in m/s (blocks per second)
+  max-speed: 10.0
+
+  # Acceleration in m/s² when pressing W
+  acceleration: 2.0
+
+  # Friction multiplier per tick when coasting (not pressing W)
+  # Lower = stops faster. 0.92 ≈ 2.5 seconds to stop from max speed
+  coast-friction: 0.92
+
+  # Friction multiplier per tick when braking (pressing S)
+  # Lower = stops faster. 0.80 ≈ 1 second to stop from max speed
+  brake-friction: 0.80
+
+  # Minimum speed threshold (below this, vehicle stops completely)
+  min-speed: 0.1
+
+# Steering settings
+steering:
+  # Maximum turn rate in degrees per tick at zero speed (yaw-following)
+  max-turn-rate: 15.0
+
+  # Turn damping factor. Higher = more sluggish at speed
+  # yawRate = maxTurnRate / (1 + speed * turnDamping)
+  turn-damping: 0.3
+
+  # A/D key turning boost in degrees per tick
+  # Provides direct turning independent of look direction
+  # Slightly damped at speed: keyRate = key-turn-rate / (1 + speed * 0.1)
+  key-turn-rate: 5.0
+
+# Terrain settings
+terrain:
+  # Maximum step height the vehicle can climb (blocks)
+  # 0.5 = half slabs, 1.0 = full blocks
+  step-height: 0.5
+
+# Fuel system
+fuel:
+  # Whether fuel is required to drive
+  enabled: true
+
+  # Fuel items and their drive time in seconds
+  items:
+    COAL: 120
+    CHARCOAL: 120
+    COAL_BLOCK: 1200
+    BLAZE_ROD: 180
+    LAVA_BUCKET: 600
+
+  # Default drive time for unlisted burnable items (seconds)
+  default-burn-time: 60
+
+# Durability system
+durability:
+  # Whether durability is enabled
+  enabled: true
+
+  # Maximum durability for a new vehicle
+  max-durability: 1000
+
+  # Distance in blocks per 1 durability point consumed
+  distance-per-durability: 10.0
+
+# Collision settings
+collision:
+  # Whether entity collision damage is enabled
+  enabled: true
+
+  # Damage dealt to entities on collision (in half-hearts)
+  damage: 1.0
+
+  # Minimum speed (m/s) required to deal collision damage
+  min-speed: 3.0
+
+  # Knockback strength applied to hit entities
+  knockback: 0.5
+
+  # Cooldown between collision damage to the same entity (ticks)
+  # 20 ticks = 1 second
+  damage-cooldown: 20
+
+  # How long to track collision victims for death detection (ticks)
+  # 100 ticks = 5 seconds. If a player dies within this time after being hit,
+  # the death will be attributed to the vehicle collision.
+  death-track-window: 100
+
+# Hazard settings
+hazards:
+  # Water behavior
+  water:
+    # Ticks before ejecting player when in water (20 = 1 second)
+    eject-delay: 20
+
+  # Lava behavior
+  lava:
+    # Instantly destroy vehicle in lava
+    instant-destroy: true
+
+# Visual effects
+effects:
+  # Exhaust particles
+  exhaust:
+    enabled: true
+    # Particle type
+    type: CAMPFIRE_SIGNAL_SMOKE
+    # Number of particles per tick
+    count: 1
+    # Only show when accelerating
+    only-when-accelerating: true
+
+# Messages (Chinese - Simplified)
+messages_zh_cn:
+  prefix: "&7[&bHikariVehicle&7]&r "
+  no-permission: "&c你没有权限执行此操作"
+  no-fuel: "&c燃料耗尽！请补充燃料"
+  fuel-consumed: "&a已消耗燃料: &f{item}"
+  vehicle-destroyed: "&c车辆已损坏报废"
+  water-eject: "&e车辆落水！已强制弹出"
+  lava-destroy: "&c车辆被岩浆销毁！"
+  reload-success: "&a配置已重新加载"
+  durability-low: "&e车辆耐久度不足: &f{durability}/{max}"
+  death-by-vehicle: "&c{victim} &f被 &c{driver} &f开车撞死了"
+  death-by-vehicle-self: "&f你被 &c{driver} &f开车撞死了"
+
+# Messages (English)
+messages_en_us:
+  prefix: "&7[&bHikariVehicle&7]&r "
+  no-permission: "&cYou don't have permission to do this"
+  no-fuel: "&cOut of fuel! Please refuel"
+  fuel-consumed: "&aConsumed fuel: &f{item}"
+  vehicle-destroyed: "&cVehicle has been destroyed"
+  water-eject: "&eVehicle fell into water! Ejected"
+  lava-destroy: "&cVehicle destroyed by lava!"
+  reload-success: "&aConfiguration reloaded"
+  durability-low: "&eVehicle durability low: &f{durability}/{max}"
+  death-by-vehicle: "&c{victim} &fwas run over by &c{driver}"
+  death-by-vehicle-self: "&fYou were run over by &c{driver}"
