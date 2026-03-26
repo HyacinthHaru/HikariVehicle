@@ -1,7 +1,7 @@
 package com.hikaricraft.vehicle.listener;
 
+import com.hikaricraft.vehicle.config.ConfigManager;
 import com.hikaricraft.vehicle.manager.VehicleManager;
-import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Minecart;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -84,7 +84,7 @@ public class VehicleListener implements Listener {
                     .replace("{victim}", victim.getName())
                     .replace("{driver}", record.driverName());
 
-            event.deathMessage(Component.text(message));
+            event.deathMessage(ConfigManager.toComponent(message));
             vehicleManager.removeCollisionRecord(victim.getUniqueId());
         }
     }

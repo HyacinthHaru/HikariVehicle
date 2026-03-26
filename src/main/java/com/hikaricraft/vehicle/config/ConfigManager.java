@@ -9,6 +9,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -29,8 +30,7 @@ public class ConfigManager {
             "lava-destroy", "&c车辆被岩浆销毁！",
             "reload-success", "&a配置已重新加载",
             "durability-low", "&e车辆耐久度不足: &f{durability}/{max}",
-            "death-by-vehicle", "&c{victim} &f被 &c{driver} &f开车撞死了",
-            "death-by-vehicle-self", "&f你被 &c{driver} &f开车撞死了"
+            "death-by-vehicle", "&c{victim} &f被 &c{driver} &f开车撞死了"
     );
 
     // Default English messages
@@ -43,8 +43,7 @@ public class ConfigManager {
             "lava-destroy", "&cVehicle destroyed by lava!",
             "reload-success", "&aConfiguration reloaded",
             "durability-low", "&eVehicle durability low: &f{durability}/{max}",
-            "death-by-vehicle", "&c{victim} &fwas run over by &c{driver}",
-            "death-by-vehicle-self", "&fYou were run over by &c{driver}"
+            "death-by-vehicle", "&c{victim} &fwas run over by &c{driver}"
     );
 
     private final HikariVehicle plugin;
@@ -102,7 +101,7 @@ public class ConfigManager {
 
     public ConfigManager(HikariVehicle plugin) {
         this.plugin = plugin;
-        this.fuelItems = new HashMap<>();
+        this.fuelItems = new LinkedHashMap<>();
         this.messages = new HashMap<>();
     }
 
@@ -241,6 +240,10 @@ public class ConfigManager {
         return colorize(messagePrefix + msg);
     }
 
+    public String getPrefix() {
+        return colorize(messagePrefix);
+    }
+
     /**
      * Get a raw message without prefix (for death messages etc.)
      */
@@ -282,8 +285,6 @@ public class ConfigManager {
     }
 
     // Getters
-    public String getLanguage() { return language; }
-
     public double getMaxSpeed() { return maxSpeed; }
     public double getAcceleration() { return acceleration; }
     public double getCoastFriction() { return coastFriction; }

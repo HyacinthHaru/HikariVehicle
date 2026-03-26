@@ -10,7 +10,6 @@ commands:
   hv:
     description: HikariVehicle main command
     usage: /<command> [reload]
-    permission: hikarivehicle.admin
 
 permissions:
   hikarivehicle.admin:

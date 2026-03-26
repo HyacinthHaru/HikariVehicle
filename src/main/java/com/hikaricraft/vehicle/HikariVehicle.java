@@ -49,7 +49,7 @@ public class HikariVehicle extends JavaPlugin {
 
         if (args.length == 0) {
             sender.sendMessage(LegacyComponentSerializer.legacySection().deserialize(
-                    configManager.getMessage("prefix")
+                    configManager.getPrefix()
                             + "HikariVehicle v" + getPluginMeta().getVersion()));
             return true;
         }

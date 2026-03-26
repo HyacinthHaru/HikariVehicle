@@ -18,7 +18,6 @@ public class VehicleData {
     private static NamespacedKey KEY_MAX_DURABILITY;
     private static NamespacedKey KEY_DISTANCE;
 
-    private final UUID minecartId;
     private UUID driverId;
     private double speed;        // m/s
     private double heading;      // degrees (yaw)
@@ -27,7 +26,6 @@ public class VehicleData {
     private int maxDurability;
     private double distanceSinceLastDurability;
     private int waterTicks;      // ticks spent in water
-    private boolean driving;
 
     public static void initKeys(Plugin plugin) {
         KEY_FUEL = new NamespacedKey(plugin, "vehicle_fuel");
@@ -36,8 +34,7 @@ public class VehicleData {
         KEY_DISTANCE = new NamespacedKey(plugin, "vehicle_distance");
     }
 
-    public VehicleData(UUID minecartId, int maxDurability) {
-        this.minecartId = minecartId;
+    public VehicleData(int maxDurability) {
         this.speed = 0;
         this.heading = 0;
         this.fuelTicks = 0;
@@ -45,7 +42,6 @@ public class VehicleData {
         this.maxDurability = maxDurability;
         this.distanceSinceLastDurability = 0;
         this.waterTicks = 0;
-        this.driving = false;
     }
 
     public void loadFromEntity(Minecart minecart) {
@@ -65,7 +61,6 @@ public class VehicleData {
     }
 
     // Getters and setters
-    public UUID getMinecartId() { return minecartId; }
     public UUID getDriverId() { return driverId; }
     public void setDriverId(UUID driverId) { this.driverId = driverId; }
     public double getSpeed() { return speed; }
@@ -81,6 +76,4 @@ public class VehicleData {
     public void setDistanceSinceLastDurability(double d) { this.distanceSinceLastDurability = d; }
     public int getWaterTicks() { return waterTicks; }
     public void setWaterTicks(int waterTicks) { this.waterTicks = waterTicks; }
-    public boolean isDriving() { return driving; }
-    public void setDriving(boolean driving) { this.driving = driving; }
 }

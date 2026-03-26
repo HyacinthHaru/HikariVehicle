@@ -51,6 +51,7 @@ fuel:
   enabled: true
 
   # Fuel items and their drive time in seconds
+  # Items are checked in the listed order when choosing fuel.
   items:
     COAL: 120
     CHARCOAL: 120
@@ -131,7 +132,6 @@ messages_zh_cn:
   reload-success: "&a配置已重新加载"
   durability-low: "&e车辆耐久度不足: &f{durability}/{max}"
   death-by-vehicle: "&c{victim} &f被 &c{driver} &f开车撞死了"
-  death-by-vehicle-self: "&f你被 &c{driver} &f开车撞死了"
 
 # Messages (English)
 messages_en_us:
@@ -145,4 +145,3 @@ messages_en_us:
   reload-success: "&aConfiguration reloaded"
   durability-low: "&eVehicle durability low: &f{durability}/{max}"
   death-by-vehicle: "&c{victim} &fwas run over by &c{driver}"
-  death-by-vehicle-self: "&fYou were run over by &c{driver}"

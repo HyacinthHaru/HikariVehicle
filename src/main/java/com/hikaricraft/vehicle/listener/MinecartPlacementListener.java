@@ -3,8 +3,8 @@ package com.hikaricraft.vehicle.listener;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.entity.Minecart;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.EntityType;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -19,7 +19,7 @@ import org.bukkit.inventory.ItemStack;
  */
 public class MinecartPlacementListener implements Listener {
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPlayerInteract(PlayerInteractEvent event) {
         // Only handle right-click on block with minecart
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
@@ -56,12 +56,19 @@ public class MinecartPlacementListener implements Listener {
         Player player = event.getPlayer();
         org.bukkit.Location loc = targetBlock.getLocation().add(0.5, 0.0, 0.5);
 
-        // Spawn minecart
-        Minecart minecart = (Minecart) player.getWorld().spawn(loc, org.bukkit.entity.EntityType.MINECART.getEntityClass());
+        EntityType entityType = getEntityType(item.getType());
+        if (entityType == null) return;
+
+        // Spawn the matching minecart variant instead of always downgrading to a regular cart.
+        player.getWorld().spawnEntity(loc, entityType);
 
         // Consume item (respect creative mode)
         if (player.getGameMode() != org.bukkit.GameMode.CREATIVE) {
-            item.setAmount(item.getAmount() - 1);
+            if (item.getAmount() <= 1) {
+                player.getInventory().setItemInMainHand(null);
+            } else {
+                item.setAmount(item.getAmount() - 1);
+            }
         }
     }
 
@@ -78,5 +85,16 @@ public class MinecartPlacementListener implements Listener {
                 || material == Material.POWERED_RAIL
                 || material == Material.DETECTOR_RAIL
                 || material == Material.ACTIVATOR_RAIL;
+    }
+
+    private EntityType getEntityType(Material material) {
+        return switch (material) {
+            case MINECART -> EntityType.MINECART;
+            case CHEST_MINECART -> EntityType.CHEST_MINECART;
+            case FURNACE_MINECART -> EntityType.FURNACE_MINECART;
+            case HOPPER_MINECART -> EntityType.HOPPER_MINECART;
+            case TNT_MINECART -> EntityType.TNT_MINECART;
+            default -> null;
+        };
     }
 }

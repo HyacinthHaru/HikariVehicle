@@ -47,6 +47,12 @@ public class VehicleManager {
     private record VehicleInput(boolean forward, boolean backward,
                                 boolean left, boolean right, boolean sneak) {}
 
+    private enum HazardResult {
+        NONE,
+        SKIP_TICK,
+        REMOVE
+    }
+
     private boolean isBedrockPlayer(Player player) {
         // Floodgate assigns UUID version 0 to Bedrock players
         return player.getUniqueId().version() == 0;
@@ -113,11 +119,10 @@ public class VehicleManager {
         minecart.setSlowWhenEmpty(false);
         minecart.setDerailedVelocityMod(new Vector(1.0, 1.0, 1.0));
 
-        VehicleData data = new VehicleData(cartId, config.getMaxDurability());
+        VehicleData data = new VehicleData(config.getMaxDurability());
         data.loadFromEntity(minecart);
         data.setDriverId(player.getUniqueId());
         data.setHeading(player.getLocation().getYaw());
-        data.setDriving(true);
 
         activeVehicles.put(cartId, data);
         return true;
@@ -140,10 +145,6 @@ public class VehicleManager {
 
     public boolean isActiveVehicle(UUID minecartId) {
         return activeVehicles.containsKey(minecartId);
-    }
-
-    public VehicleData getVehicleData(UUID minecartId) {
-        return activeVehicles.get(minecartId);
     }
 
     /**
@@ -281,9 +282,13 @@ public class VehicleManager {
             return true;  // 正常退出，标记移除
         }
 
-        // 3. Hazards (lava / water) - 返回 true 表示车辆已销毁
-        if (checkHazards(minecart, player, data)) {
+        // 3. Hazards (lava / water) - may remove the cart or pause this tick
+        HazardResult hazardResult = checkHazards(minecart, player, data);
+        if (hazardResult == HazardResult.REMOVE) {
             return true;
+        }
+        if (hazardResult == HazardResult.SKIP_TICK) {
+            return false;
         }
 
         // 4. Fuel
@@ -378,10 +383,7 @@ public class VehicleManager {
 
     // ===== Hazards =====
 
-    /**
-     * @return true if the vehicle was destroyed and should be removed
-     */
-    private boolean checkHazards(Minecart minecart, Player player, VehicleData data) {
+    private HazardResult checkHazards(Minecart minecart, Player player, VehicleData data) {
         Material type = minecart.getLocation().getBlock().getType();
 
         // Lava: instant destroy
@@ -390,7 +392,7 @@ public class VehicleManager {
             minecart.removePassenger(player);
             minecart.remove();
             refreshPlayerPosition(player.getUniqueId());
-            return true;
+            return HazardResult.REMOVE;
         }
 
         // Water: sink, then eject after delay
@@ -406,13 +408,13 @@ public class VehicleManager {
                 minecart.remove();
                 loc.getWorld().dropItemNaturally(loc, new ItemStack(Material.MINECART));
                 refreshPlayerPosition(player.getUniqueId());
-                return true;
+                return HazardResult.REMOVE;
             }
-            return true; // skip driving while in water, but not destroyed yet
+            return HazardResult.SKIP_TICK;
         }
 
         data.setWaterTicks(0);
-        return false;
+        return HazardResult.NONE;
     }
 
     // ===== Fuel =====
@@ -425,11 +427,8 @@ public class VehicleManager {
             int slot = inventory.first(entry.getKey());
             if (slot >= 0) {
                 ItemStack stack = inventory.getItem(slot);
-                String name = stack.getType().name();
-                stack.setAmount(stack.getAmount() - 1);
-                data.setFuelTicks(entry.getValue() * 20);
-                player.sendActionBar(LEGACY.deserialize(
-                        config.getMessage("fuel-consumed").replace("{item}", name)));
+                if (stack == null) continue;
+                consumeFuel(player, slot, stack, entry.getValue() * 20, data);
                 return true;
             }
         }
@@ -439,16 +438,47 @@ public class VehicleManager {
             ItemStack item = inventory.getItem(i);
             if (item != null && item.getType().isFuel()
                     && !config.getFuelItems().containsKey(item.getType())) {
-                String name = item.getType().name();
-                item.setAmount(item.getAmount() - 1);
-                data.setFuelTicks(config.getDefaultBurnTime() * 20);
-                player.sendActionBar(LEGACY.deserialize(
-                        config.getMessage("fuel-consumed").replace("{item}", name)));
+                consumeFuel(player, i, item, config.getDefaultBurnTime() * 20, data);
                 return true;
             }
         }
 
         return false;
+    }
+
+    private void consumeFuel(Player player, int slot, ItemStack stack, int fuelTicks, VehicleData data) {
+        String name = stack.getType().name();
+        if (stack.getType() == Material.LAVA_BUCKET) {
+            consumeLavaBucket(player, slot, stack);
+        } else {
+            decrementStack(player, slot, stack);
+        }
+
+        data.setFuelTicks(fuelTicks);
+        player.sendActionBar(LEGACY.deserialize(
+                config.getMessage("fuel-consumed").replace("{item}", name)));
+    }
+
+    private void consumeLavaBucket(Player player, int slot, ItemStack stack) {
+        var inventory = player.getInventory();
+        if (stack.getAmount() <= 1) {
+            inventory.setItem(slot, new ItemStack(Material.BUCKET));
+            return;
+        }
+
+        stack.setAmount(stack.getAmount() - 1);
+        Map<Integer, ItemStack> leftovers = inventory.addItem(new ItemStack(Material.BUCKET));
+        for (ItemStack leftover : leftovers.values()) {
+            player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+        }
+    }
+
+    private void decrementStack(Player player, int slot, ItemStack stack) {
+        if (stack.getAmount() <= 1) {
+            player.getInventory().setItem(slot, null);
+            return;
+        }
+        stack.setAmount(stack.getAmount() - 1);
     }
 
     // ===== Step-Up =====
