@@ -6,7 +6,7 @@
 
     <groupId>com.hikaricraft</groupId>
     <artifactId>HikariVehicle</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4</version>
     <packaging>jar</packaging>
 
     <name>HikariVehicle</name>

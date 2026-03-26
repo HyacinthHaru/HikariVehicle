@@ -84,10 +84,7 @@ public class VehicleManager {
             Entity entity = Bukkit.getEntity(entry.getKey());
             if (entity instanceof Minecart minecart) {
                 entry.getValue().saveToEntity(minecart);
-                minecart.setVelocity(new Vector(0, 0, 0));
-                minecart.setMaxSpeed(0.4);
-                minecart.setSlowWhenEmpty(true);
-                minecart.setDerailedVelocityMod(new Vector(0.5, 0.5, 0.5));
+                resetMinecartState(minecart);
             }
         }
         activeVehicles.clear();
@@ -135,10 +132,7 @@ public class VehicleManager {
             Entity entity = Bukkit.getEntity(minecartId);
             if (entity instanceof Minecart minecart) {
                 data.saveToEntity(minecart);
-                minecart.setVelocity(new Vector(0, 0, 0));
-                minecart.setMaxSpeed(0.4);
-                minecart.setSlowWhenEmpty(true);
-                minecart.setDerailedVelocityMod(new Vector(0.5, 0.5, 0.5));
+                resetMinecartState(minecart);
             }
             refreshPlayerPosition(data.getDriverId());
         }
@@ -150,6 +144,27 @@ public class VehicleManager {
 
     public VehicleData getVehicleData(UUID minecartId) {
         return activeVehicles.get(minecartId);
+    }
+
+    /**
+     * Only block manual dismounts from the active driver while the vehicle is still moving
+     * or stuck in water. All other exits should be allowed so the minecart can recover.
+     */
+    public boolean shouldCancelExit(UUID minecartId, Entity exited) {
+        VehicleData data = activeVehicles.get(minecartId);
+        if (data == null) {
+            return false;
+        }
+        if (!(exited instanceof Player player)) {
+            return false;
+        }
+        if (!player.getUniqueId().equals(data.getDriverId())) {
+            return false;
+        }
+        if (!player.isOnline() || player.isDead()) {
+            return false;
+        }
+        return data.getSpeed() >= config.getMinSpeed() || data.getWaterTicks() > 0;
     }
 
     // ===== Tick Loop =====
@@ -177,7 +192,13 @@ public class VehicleManager {
             }
 
             Entity passenger = minecart.getPassengers().get(0);
+            if (!passenger.isValid()) {
+                toRemove.add(cartId);
+                continue;
+            }
             if (!(passenger instanceof Player player)
+                    || !player.isOnline()
+                    || player.isDead()
                     || !player.getUniqueId().equals(data.getDriverId())) {
                 toRemove.add(cartId);
                 continue;
@@ -204,10 +225,7 @@ public class VehicleManager {
             Entity entity = Bukkit.getEntity(minecartId);
             if (entity instanceof Minecart minecart) {
                 data.saveToEntity(minecart);
-                minecart.setVelocity(new Vector(0, 0, 0));
-                minecart.setMaxSpeed(0.4);
-                minecart.setSlowWhenEmpty(true);
-                minecart.setDerailedVelocityMod(new Vector(0.5, 0.5, 0.5));
+                resetMinecartState(minecart);
             }
             refreshPlayerPosition(data.getDriverId());
         }
@@ -554,6 +572,21 @@ public class VehicleManager {
                 || material == Material.POWERED_RAIL
                 || material == Material.DETECTOR_RAIL
                 || material == Material.ACTIVATOR_RAIL;
+    }
+
+    /**
+     * Force-clear any leftover passengers before resetting vanilla minecart behavior.
+     * This prevents fake-player or cancelled-exit residue from making the cart unridable.
+     */
+    private void resetMinecartState(Minecart minecart) {
+        for (Entity passenger : List.copyOf(minecart.getPassengers())) {
+            minecart.removePassenger(passenger);
+        }
+        minecart.eject();
+        minecart.setVelocity(new Vector(0, 0, 0));
+        minecart.setMaxSpeed(0.4);
+        minecart.setSlowWhenEmpty(true);
+        minecart.setDerailedVelocityMod(new Vector(0.5, 0.5, 0.5));
     }
 
     /**

@@ -40,14 +40,13 @@ public class VehicleListener implements Listener {
         if (!(event.getVehicle() instanceof Minecart minecart)) return;
 
         if (vehicleManager.isActiveVehicle(minecart.getUniqueId())) {
-            // Allow exit if player is dead (prevents getting stuck after death)
-            if (event.getExited() instanceof Player player && player.isDead()) {
-                vehicleManager.exitVehicle(minecart.getUniqueId());
+            if (vehicleManager.shouldCancelExit(minecart.getUniqueId(), event.getExited())) {
+                // Block manual dismount while actively driving.
+                // Safe/abnormal exits are allowed so the cart can be cleaned up.
+                event.setCancelled(true);
                 return;
             }
-            // Block Shift-dismount while driving.
-            // Actual exit is handled inside the tick loop (sneak while stopped).
-            event.setCancelled(true);
+            vehicleManager.exitVehicle(minecart.getUniqueId());
         }
     }
 
