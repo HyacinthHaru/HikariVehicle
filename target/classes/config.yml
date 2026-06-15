@@ -78,8 +78,12 @@ collision:
   # Whether entity collision damage is enabled
   enabled: true
 
-  # Damage dealt to entities on collision (in half-hearts)
+  # Base collision damage at the minimum collision speed (HP; 2 HP = 1 heart)
   damage: 1.0
+
+  # Maximum collision damage, reached at movement.max-speed (HP).
+  # Damage scales linearly with speed from `damage` (at min-speed) to this cap.
+  max-damage: 4.0
 
   # Minimum speed (m/s) required to deal collision damage
   min-speed: 3.0

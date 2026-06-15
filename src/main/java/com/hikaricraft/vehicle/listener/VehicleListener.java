@@ -2,11 +2,14 @@ package com.hikaricraft.vehicle.listener;
 
 import com.hikaricraft.vehicle.config.ConfigManager;
 import com.hikaricraft.vehicle.manager.VehicleManager;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Minecart;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.vehicle.VehicleDestroyEvent;
@@ -82,6 +85,14 @@ public class VehicleListener implements Listener {
         VehicleManager.CollisionRecord record = vehicleManager.getCollisionRecord(victim.getUniqueId());
         if (record == null) return;
 
+        // Only claim the death if the *killing blow* actually came from the recorded
+        // driver. Without this, a harmless earlier bump would hijack any unrelated
+        // death (fall, lava, mob) that happens within the tracking window.
+        if (!wasKilledByDriver(victim, record)) {
+            vehicleManager.removeCollisionRecord(victim.getUniqueId());
+            return;
+        }
+
         String template = vehicleManager.getDeathMessageTemplate();
         if (template == null || template.isEmpty()) {
             vehicleManager.removeCollisionRecord(victim.getUniqueId());
@@ -96,5 +107,19 @@ public class VehicleListener implements Listener {
 
         event.deathMessage(ConfigManager.toComponent(message));
         vehicleManager.removeCollisionRecord(victim.getUniqueId());
+    }
+
+    /**
+     * True only when the victim's last damage cause was the recorded driver.
+     * Collision damage is now dealt with the driver as the source, so the
+     * killing blow's damager is the player who ran them over.
+     */
+    private boolean wasKilledByDriver(Player victim, VehicleManager.CollisionRecord record) {
+        EntityDamageEvent cause = victim.getLastDamageCause();
+        if (!(cause instanceof EntityDamageByEntityEvent byEntity)) {
+            return false;
+        }
+        Entity damager = byEntity.getDamager();
+        return damager instanceof Player p && p.getUniqueId().equals(record.driverId());
     }
 }

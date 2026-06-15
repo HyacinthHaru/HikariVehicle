@@ -10,9 +10,11 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Minecart;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -360,13 +362,13 @@ public class VehicleManager {
             return false;
         }
 
-        // 4. Fuel.
+        // 4. Fuel — only burns while actually accelerating, never while
+        //    idling / coasting / braking (and no unit is consumed just for boarding).
         boolean hasFuel = true;
-        if (config.isFuelEnabled()) {
+        if (config.isFuelEnabled() && input.forward()) {
             if (data.getFuelTicks() <= 0) {
                 hasFuel = tryConsumeFuel(player, data);
-                if (!hasFuel && input.forward()
-                        && minecart.getTicksLived() % ACTION_BAR_INTERVAL_TICKS == 0) {
+                if (!hasFuel && minecart.getTicksLived() % ACTION_BAR_INTERVAL_TICKS == 0) {
                     player.sendActionBar(LEGACY.deserialize(config.getMessage("no-fuel")));
                 }
             } else {
@@ -431,7 +433,7 @@ public class VehicleManager {
 
         // 8. Collision.
         if (config.isCollisionEnabled() && speed >= config.getCollisionMinSpeed()) {
-            handleCollision(minecart, player);
+            handleCollision(minecart, player, speed);
         }
 
         // 9. Durability — true means the vehicle was destroyed.
@@ -498,13 +500,41 @@ public class VehicleManager {
         UUID driverId = driver.getUniqueId();
         activeVehicles.remove(minecartId);
 
+        // Snapshot the drops *before* removing the entity: the matching cart
+        // variant item (chest/furnace/hopper/TNT, not always a plain minecart)
+        // plus any inventory contents, so destroying a chest cart no longer
+        // silently eats the items inside it.
+        Material cartItem = minecartItem(minecart.getType());
+        List<ItemStack> contents = new ArrayList<>();
+        if (dropMinecartItem && minecart instanceof InventoryHolder holder) {
+            for (ItemStack stack : holder.getInventory().getContents()) {
+                if (stack != null && !stack.getType().isAir()) {
+                    contents.add(stack.clone());
+                }
+            }
+        }
+
         minecart.removePassenger(driver);
         minecart.remove();
 
         if (dropMinecartItem && dropAt != null && dropAt.getWorld() != null) {
-            dropAt.getWorld().dropItemNaturally(dropAt, new ItemStack(Material.MINECART));
+            dropAt.getWorld().dropItemNaturally(dropAt, new ItemStack(cartItem));
+            for (ItemStack stack : contents) {
+                dropAt.getWorld().dropItemNaturally(dropAt, stack);
+            }
         }
         refreshPlayerPosition(driverId);
+    }
+
+    /** Map a minecart entity type back to the item players should recover on destroy. */
+    static Material minecartItem(EntityType type) {
+        return switch (type) {
+            case CHEST_MINECART -> Material.CHEST_MINECART;
+            case FURNACE_MINECART -> Material.FURNACE_MINECART;
+            case HOPPER_MINECART -> Material.HOPPER_MINECART;
+            case TNT_MINECART -> Material.TNT_MINECART;
+            default -> Material.MINECART;
+        };
     }
 
     // ===== Fuel =====
@@ -605,8 +635,9 @@ public class VehicleManager {
 
     // ===== Collision =====
 
-    private void handleCollision(Minecart minecart, Player driver) {
+    private void handleCollision(Minecart minecart, Player driver, double speed) {
         long now = Bukkit.getCurrentTick();
+        double damage = computeCollisionDamage(speed);
 
         for (Entity entity : minecart.getNearbyEntities(
                 COLLISION_CHECK_RADIUS, COLLISION_CHECK_RADIUS, COLLISION_CHECK_RADIUS)) {
@@ -620,7 +651,9 @@ public class VehicleManager {
             }
 
             collisionCooldowns.put(entity.getUniqueId(), now);
-            living.damage(config.getCollisionDamage(), minecart);
+            // Attribute the damage to the driver (not the cart) so PvP / region
+            // protection can veto it and damage cause reflects the real attacker.
+            living.damage(damage, driver);
 
             // Record victim for death-message attribution.
             collisionVictims.put(entity.getUniqueId(),
@@ -638,6 +671,26 @@ public class VehicleManager {
             knockback.setY(COLLISION_KNOCKBACK_Y);
             entity.setVelocity(knockback);
         }
+    }
+
+    private double computeCollisionDamage(double speed) {
+        return scaleCollisionDamage(speed, config.getCollisionMinSpeed(), config.getMaxSpeed(),
+                config.getCollisionDamage(), config.getCollisionMaxDamage());
+    }
+
+    /**
+     * Scale collision damage with speed: {@code baseDamage} at the collision
+     * threshold ({@code minSpeed}), rising linearly to {@code maxDamage} at
+     * {@code maxSpeed} and never exceeding it. Pure function for easy reasoning/testing.
+     */
+    static double scaleCollisionDamage(double speed, double minSpeed, double maxSpeed,
+                                       double baseDamage, double maxDamage) {
+        if (maxDamage < baseDamage) maxDamage = baseDamage;
+        if (maxSpeed <= minSpeed) return maxDamage;        // degenerate config -> just use the cap
+        double t = (speed - minSpeed) / (maxSpeed - minSpeed);
+        if (t < 0.0) t = 0.0;
+        if (t > 1.0) t = 1.0;
+        return baseDamage + t * (maxDamage - baseDamage);
     }
 
     // ===== Durability =====

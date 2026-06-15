@@ -4,6 +4,7 @@ com/hikaricraft/vehicle/HikariVehicle.class
 com/hikaricraft/vehicle/manager/VehicleManager.class
 com/hikaricraft/vehicle/config/ConfigManager.class
 com/hikaricraft/vehicle/manager/VehicleManager$HazardResult.class
+com/hikaricraft/vehicle/manager/VehicleManager$2.class
 com/hikaricraft/vehicle/listener/MinecartPlacementListener.class
 com/hikaricraft/vehicle/listener/MinecartPlacementListener$1.class
 com/hikaricraft/vehicle/manager/VehicleManager$CollisionRecord.class

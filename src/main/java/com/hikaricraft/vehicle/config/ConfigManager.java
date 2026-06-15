@@ -87,6 +87,7 @@ public class ConfigManager {
     // Collision
     private boolean collisionEnabled;
     private double collisionDamage;
+    private double collisionMaxDamage;
     private double collisionMinSpeed;
     private double collisionKnockback;
     private int collisionDamageCooldown;
@@ -202,6 +203,13 @@ public class ConfigManager {
         collisionEnabled = config.getBoolean("collision.enabled", true);
         collisionDamage = clampNonNegative(
                 config.getDouble("collision.damage", 1.0), 1.0, "collision.damage");
+        collisionMaxDamage = clampNonNegative(
+                config.getDouble("collision.max-damage", 4.0), 4.0, "collision.max-damage");
+        if (collisionMaxDamage < collisionDamage) {
+            plugin.getLogger().warning("collision.max-damage (" + collisionMaxDamage
+                    + ") must be >= collision.damage (" + collisionDamage + "); raising to base.");
+            collisionMaxDamage = collisionDamage;
+        }
         collisionMinSpeed = clampNonNegative(
                 config.getDouble("collision.min-speed", 3.0), 3.0, "collision.min-speed");
         collisionKnockback = clampNonNegative(
@@ -388,6 +396,7 @@ public class ConfigManager {
 
     public boolean isCollisionEnabled() { return collisionEnabled; }
     public double getCollisionDamage() { return collisionDamage; }
+    public double getCollisionMaxDamage() { return collisionMaxDamage; }
     public double getCollisionMinSpeed() { return collisionMinSpeed; }
     public double getCollisionKnockback() { return collisionKnockback; }
     public int getCollisionDamageCooldown() { return collisionDamageCooldown; }
