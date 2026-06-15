@@ -1,7 +1,7 @@
 name: HikariVehicle
-version: 1.0.5
+version: 1.0.6
 main: com.hikaricraft.vehicle.HikariVehicle
-api-version: '1.21'
+api-version: '1.21.4'
 description: A ground vehicle plugin using minecarts
 authors:
   - HikariCraft

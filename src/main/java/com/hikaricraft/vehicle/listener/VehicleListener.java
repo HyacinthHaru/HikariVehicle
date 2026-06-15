@@ -24,7 +24,7 @@ public class VehicleListener implements Listener {
         this.vehicleManager = vehicleManager;
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onVehicleEnter(VehicleEnterEvent event) {
         if (!(event.getVehicle() instanceof Minecart minecart)) return;
         if (!(event.getEntered() instanceof Player player)) return;
@@ -35,7 +35,7 @@ public class VehicleListener implements Listener {
         vehicleManager.enterVehicle(player, minecart);
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onVehicleExit(VehicleExitEvent event) {
         if (!(event.getVehicle() instanceof Minecart minecart)) return;
 
@@ -50,7 +50,7 @@ public class VehicleListener implements Listener {
         }
     }
 
-    @EventHandler
+    @EventHandler(ignoreCancelled = true)
     public void onVehicleDestroy(VehicleDestroyEvent event) {
         if (!(event.getVehicle() instanceof Minecart minecart)) return;
 
@@ -62,30 +62,39 @@ public class VehicleListener implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
-        if (player.getVehicle() instanceof Minecart minecart) {
-            if (vehicleManager.isActiveVehicle(minecart.getUniqueId())) {
-                vehicleManager.exitVehicle(minecart.getUniqueId());
-            }
+        if (player.getVehicle() instanceof Minecart minecart
+                && vehicleManager.isActiveVehicle(minecart.getUniqueId())) {
+            vehicleManager.exitVehicle(minecart.getUniqueId());
         }
+        // Drop any pending collision record for this player so it doesn't
+        // sit in memory until the death-track window expires.
+        vehicleManager.removeCollisionRecord(player.getUniqueId());
     }
 
     /**
-     * Handle player death - show custom death message if killed by vehicle collision.
+     * Show a custom death message when the player was killed by a vehicle collision.
+     * Runs at MONITOR priority so other death-message plugins get to set their
+     * message first, and the vehicle attribution wins only if applicable.
      */
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player victim = event.getEntity();
         VehicleManager.CollisionRecord record = vehicleManager.getCollisionRecord(victim.getUniqueId());
+        if (record == null) return;
 
-        if (record != null) {
-            // Use the death message from config
-            String template = vehicleManager.getDeathMessageTemplate();
-            String message = template
-                    .replace("{victim}", victim.getName())
-                    .replace("{driver}", record.driverName());
-
-            event.deathMessage(ConfigManager.toComponent(message));
+        String template = vehicleManager.getDeathMessageTemplate();
+        if (template == null || template.isEmpty()) {
             vehicleManager.removeCollisionRecord(victim.getUniqueId());
+            return;
         }
+
+        String victimName = victim.getName();
+        String driverName = record.driverName() != null ? record.driverName() : "";
+        String message = template
+                .replace("{victim}", victimName != null ? victimName : "")
+                .replace("{driver}", driverName);
+
+        event.deathMessage(ConfigManager.toComponent(message));
+        vehicleManager.removeCollisionRecord(victim.getUniqueId());
     }
 }

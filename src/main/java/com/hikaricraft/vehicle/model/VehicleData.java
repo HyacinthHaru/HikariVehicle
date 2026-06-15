@@ -10,6 +10,11 @@ import java.util.UUID;
 
 /**
  * Stores runtime and persistent state for a driven vehicle.
+ *
+ * <p>Persistent fields (saved into the minecart's PersistentDataContainer):
+ * fuel ticks, current durability, max durability, distance-since-last-durability.
+ *
+ * <p>Volatile fields (recomputed each session): driverId, speed, heading, waterTicks.
  */
 public class VehicleData {
 
@@ -28,6 +33,8 @@ public class VehicleData {
     private int waterTicks;      // ticks spent in water
 
     public static void initKeys(Plugin plugin) {
+        // Idempotent: re-initialisation on plugin reload is harmless but unnecessary.
+        if (KEY_FUEL != null) return;
         KEY_FUEL = new NamespacedKey(plugin, "vehicle_fuel");
         KEY_DURABILITY = new NamespacedKey(plugin, "vehicle_durability");
         KEY_MAX_DURABILITY = new NamespacedKey(plugin, "vehicle_max_durability");
@@ -38,18 +45,30 @@ public class VehicleData {
         this.speed = 0;
         this.heading = 0;
         this.fuelTicks = 0;
-        this.durability = maxDurability;
-        this.maxDurability = maxDurability;
+        this.maxDurability = Math.max(1, maxDurability);
+        this.durability = this.maxDurability;
         this.distanceSinceLastDurability = 0;
         this.waterTicks = 0;
     }
 
+    /**
+     * Load persistent fields from the minecart's PDC.
+     * All values are defensively clamped to sane ranges in case the NBT
+     * was edited externally or written by an older/buggy version.
+     */
     public void loadFromEntity(Minecart minecart) {
         PersistentDataContainer pdc = minecart.getPersistentDataContainer();
-        this.fuelTicks = pdc.getOrDefault(KEY_FUEL, PersistentDataType.INTEGER, 0);
-        this.durability = pdc.getOrDefault(KEY_DURABILITY, PersistentDataType.INTEGER, maxDurability);
-        this.maxDurability = pdc.getOrDefault(KEY_MAX_DURABILITY, PersistentDataType.INTEGER, maxDurability);
-        this.distanceSinceLastDurability = pdc.getOrDefault(KEY_DISTANCE, PersistentDataType.DOUBLE, 0.0);
+
+        int loadedMax = pdc.getOrDefault(KEY_MAX_DURABILITY, PersistentDataType.INTEGER, maxDurability);
+        int loadedDur = pdc.getOrDefault(KEY_DURABILITY, PersistentDataType.INTEGER, maxDurability);
+        int loadedFuel = pdc.getOrDefault(KEY_FUEL, PersistentDataType.INTEGER, 0);
+        double loadedDist = pdc.getOrDefault(KEY_DISTANCE, PersistentDataType.DOUBLE, 0.0);
+
+        this.maxDurability = Math.max(1, loadedMax);
+        this.durability = Math.max(0, Math.min(loadedDur, this.maxDurability));
+        this.fuelTicks = Math.max(0, loadedFuel);
+        this.distanceSinceLastDurability =
+                (Double.isFinite(loadedDist) && loadedDist >= 0.0) ? loadedDist : 0.0;
     }
 
     public void saveToEntity(Minecart minecart) {

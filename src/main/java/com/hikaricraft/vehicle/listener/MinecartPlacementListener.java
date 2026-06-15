@@ -1,10 +1,14 @@
 package com.hikaricraft.vehicle.listener;
 
+import com.hikaricraft.vehicle.util.RailUtils;
+import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -21,7 +25,7 @@ public class MinecartPlacementListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPlayerInteract(PlayerInteractEvent event) {
-        // Only handle right-click on block with minecart
+        // Only handle right-click on block, main hand only (otherwise the event fires twice).
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         if (event.getHand() != EquipmentSlot.HAND) return;
 
@@ -32,38 +36,40 @@ public class MinecartPlacementListener implements Listener {
         if (clickedBlock == null) return;
 
         BlockFace face = event.getBlockFace();
+        if (face == null) return;
         Block targetBlock = clickedBlock.getRelative(face);
 
-        // If placing on rail, let vanilla handle it
-        if (isRail(clickedBlock.getType()) || isRail(targetBlock.getType())) {
+        // Defer to vanilla placement when interacting with rails.
+        if (RailUtils.isRail(clickedBlock.getType()) || RailUtils.isRail(targetBlock.getType())) {
             return;
         }
 
-        // Check if target location is valid (solid ground or valid surface)
+        // Target location must be empty or liquid; below must be solid ground.
         if (!targetBlock.getType().isAir() && !targetBlock.isLiquid()) {
             return;
         }
-
-        // Check if there's solid ground below
         Block below = targetBlock.getRelative(BlockFace.DOWN);
         if (!below.getType().isSolid()) {
             return;
         }
 
-        // Cancel vanilla behavior and place minecart manually
-        event.setCancelled(true);
-
-        Player player = event.getPlayer();
-        org.bukkit.Location loc = targetBlock.getLocation().add(0.5, 0.0, 0.5);
-
         EntityType entityType = getEntityType(item.getType());
         if (entityType == null) return;
 
-        // Spawn the matching minecart variant instead of always downgrading to a regular cart.
-        player.getWorld().spawnEntity(loc, entityType);
+        Player player = event.getPlayer();
+        Location loc = targetBlock.getLocation().add(0.5, 0.0, 0.5);
 
-        // Consume item (respect creative mode)
-        if (player.getGameMode() != org.bukkit.GameMode.CREATIVE) {
+        // Cancel vanilla placement and spawn the matching variant manually.
+        event.setCancelled(true);
+
+        Entity spawned = player.getWorld().spawnEntity(loc, entityType);
+        if (spawned == null) {
+            // Spawn refused (e.g. by another plugin); do not consume the item.
+            return;
+        }
+
+        // Consume item (respect creative mode).
+        if (player.getGameMode() != GameMode.CREATIVE) {
             if (item.getAmount() <= 1) {
                 player.getInventory().setItemInMainHand(null);
             } else {
@@ -78,13 +84,6 @@ public class MinecartPlacementListener implements Listener {
                 || material == Material.FURNACE_MINECART
                 || material == Material.HOPPER_MINECART
                 || material == Material.TNT_MINECART;
-    }
-
-    private boolean isRail(Material material) {
-        return material == Material.RAIL
-                || material == Material.POWERED_RAIL
-                || material == Material.DETECTOR_RAIL
-                || material == Material.ACTIVATOR_RAIL;
     }
 
     private EntityType getEntityType(Material material) {

@@ -18,20 +18,33 @@ public class HikariVehicle extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        VehicleData.initKeys(this);
+        try {
+            VehicleData.initKeys(this);
 
-        configManager = new ConfigManager(this);
-        configManager.load();
+            configManager = new ConfigManager(this);
+            configManager.load();
 
-        vehicleManager = new VehicleManager(this, configManager);
-        vehicleManager.start();
+            vehicleManager = new VehicleManager(this, configManager);
+            vehicleManager.start();
 
-        getServer().getPluginManager().registerEvents(
-                new VehicleListener(vehicleManager), this);
-        getServer().getPluginManager().registerEvents(
-                new MinecartPlacementListener(), this);
+            getServer().getPluginManager().registerEvents(
+                    new VehicleListener(vehicleManager), this);
+            getServer().getPluginManager().registerEvents(
+                    new MinecartPlacementListener(), this);
 
-        getLogger().info("HikariVehicle enabled!");
+            getLogger().info("HikariVehicle enabled!");
+        } catch (RuntimeException e) {
+            getLogger().severe("Failed to enable HikariVehicle: " + e.getMessage());
+            // Best-effort rollback so a tick task started before the failure is not orphaned.
+            if (vehicleManager != null) {
+                try {
+                    vehicleManager.stop();
+                } catch (RuntimeException ignored) {
+                    // Already failing; just continue tearing down.
+                }
+            }
+            throw e;
+        }
     }
 
     @Override
@@ -58,6 +71,11 @@ public class HikariVehicle extends JavaPlugin {
             if (!sender.hasPermission("hikarivehicle.admin")) {
                 sender.sendMessage(configManager.getComponent("no-permission"));
                 return true;
+            }
+            // Persist current in-memory state of every active vehicle before
+            // reloading, so the reload itself cannot lose driver progress.
+            if (vehicleManager != null) {
+                vehicleManager.saveActiveVehicles();
             }
             configManager.load();
             sender.sendMessage(configManager.getComponent("reload-success"));
