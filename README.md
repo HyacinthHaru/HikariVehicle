@@ -4,63 +4,67 @@
 
 **A ground vehicle plugin for Minecraft Paper servers**
 
-将矿车变为可驾驶的地面载具
+Turn minecarts into drivable ground vehicles.
 
 [![Minecraft](https://img.shields.io/badge/Minecraft-1.21.4-green.svg)](https://papermc.io/)
 [![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://adoptium.net/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+**English** | [简体中文](README_CN.md)
+
 </div>
 
 ---
 
-## Features | 特性
+## Features
 
-- **Ground Driving** - Drive minecarts on any solid surface, not just rails
-- **Fuel System** - Configurable fuel consumption with multiple fuel types
-- **Durability** - Vehicles degrade over distance and can be destroyed
-- **Collision Damage** - Running into entities deals damage with knockback
-- **Death Messages** - Custom death messages when players are killed by vehicles
-- **Hazard Handling** - Water ejection and lava destruction
-- **Visual Effects** - Exhaust particles while driving
-- **Multi-language** - Support for Chinese (zh_cn) and English (en_us)
-- **Bedrock Compatible** - Works with Geyser/Floodgate for Bedrock players
+- **Ground Driving** — Drive minecarts on any solid surface, not just rails.
+- **Fuel System** — Configurable fuel consumption; fuel is only burned while accelerating.
+- **Durability** — Vehicles wear down over distance and are scrapped when worn out (cargo is still returned).
+- **Speed-Scaled Collision** — Running into entities deals damage that scales with speed up to a configurable cap, with knockback.
+- **Accurate Death Messages** — A custom "run over" message is shown only when the vehicle was the actual killing blow.
+- **Hazard Handling** — Water ejects the driver; lava destroys the vehicle.
+- **Light Exhaust Trail** — Subtle exhaust particles while driving.
+- **Rail Hand-off** — Driving onto a rail hands the cart back to vanilla / rail-transit plugins with the rider still aboard.
+- **Multi-language** — Simplified Chinese (`zh_cn`) and English (`en_us`).
+- **Bedrock Compatible** — Works with Geyser/Floodgate for Bedrock players.
 
 ---
 
-## Installation | 安装
+## Installation
 
-1. Download the latest release from [Releases](../../releases)
-2. Place `HikariVehicle-x.x.x.jar` in your server's `plugins` folder
-3. Start the server
-4. Configure `config.yml` as needed
+1. Download the latest `HikariVehicle-x.x.x.jar` from [Releases](../../releases).
+2. Place it in your server's `plugins` folder.
+3. Start the server.
+4. Adjust `plugins/HikariVehicle/config.yml`, then run `/hv reload`.
 
-**Requirements:**
-- Paper 1.21.4 or later
+**Requirements**
+
+- Paper (or a fork) 1.21.4 or later
 - Java 21 or later
 
 ---
 
-## Usage | 使用方法
+## Usage
 
-### Placing a Vehicle | 放置载具
+### Placing a vehicle
 
-Right-click on any solid block with a minecart to place it on the ground (not just rails).
+Right-click any solid block with a minecart to place it on the ground (not just on rails).
 
-右键点击任意固体方块放置矿车（不再局限于铁轨）。
+### Driving
 
-### Driving | 驾驶
+1. Right-click the minecart to enter.
+2. **W** — Accelerate forward
+3. **S** / **Sneak** — Brake
+4. **A / D** — Turn assist
+5. **Mouse** — Steering direction
+6. **Sneak while stopped** — Exit the vehicle
 
-1. Right-click the minecart to enter
-2. **W** - Accelerate forward
-3. **S** / **Sneak** - Brake
-4. **A/D** - Turn assist
-5. **Mouse** - Steering direction
-6. **Sneak while stopped** - Exit vehicle
+> Bedrock players (via Geyser) auto-accelerate while not sneaking and brake by sneaking, since precise key input isn't reliably available.
 
-### Fuel | 燃料
+### Fuel
 
-Vehicles consume fuel items from your inventory. Default fuels:
+Vehicles consume fuel items from your inventory **only while accelerating**. Defaults:
 
 | Item | Burn Time |
 |------|-----------|
@@ -72,25 +76,26 @@ Vehicles consume fuel items from your inventory. Default fuels:
 
 ---
 
-## Commands | 命令
+## Commands
 
 | Command | Description | Permission |
 |---------|-------------|------------|
-| `/hv` | Show plugin version | - |
+| `/hv` | Show plugin version | — |
 | `/hv reload` | Reload configuration | `hikarivehicle.admin` |
 
 ---
 
-## Permissions | 权限
+## Permissions
 
 | Permission | Description | Default |
 |------------|-------------|---------|
 | `hikarivehicle.drive` | Drive vehicles | `true` |
-| `hikarivehicle.admin` | Admin commands | `op` |
+| `hikarivehicle.place` | Place minecarts on the ground | `true` |
+| `hikarivehicle.admin` | Admin commands (`/hv reload`) | `op` |
 
 ---
 
-## Configuration | 配置
+## Configuration
 
 ```yaml
 # Language: zh_cn (简体中文) or en_us (English)
@@ -114,7 +119,7 @@ steering:
 terrain:
   step-height: 0.5         # Max climbable height (0.5 = slabs)
 
-# Fuel system
+# Fuel system (only burns while accelerating)
 fuel:
   enabled: true
   items:
@@ -131,13 +136,14 @@ durability:
   max-durability: 1000
   distance-per-durability: 10.0
 
-# Collision settings
+# Collision settings (damage scales with speed)
 collision:
   enabled: true
-  damage: 1.0
-  min-speed: 3.0
+  damage: 1.0              # Base damage at min-speed (HP; 2 HP = 1 heart)
+  max-damage: 4.0          # Cap reached at movement.max-speed (HP)
+  min-speed: 3.0           # Minimum speed (m/s) to deal damage
   knockback: 0.5
-  damage-cooldown: 20      # Ticks between damage (20 = 1 second)
+  damage-cooldown: 20      # Ticks between damage to the same entity (20 = 1s)
   death-track-window: 100  # Death attribution window (ticks)
 
 # Hazard settings
@@ -151,27 +157,27 @@ hazards:
 effects:
   exhaust:
     enabled: true
-    type: CAMPFIRE_SIGNAL_SMOKE
+    type: SMOKE            # Light trail; CAMPFIRE_SIGNAL_SMOKE is the heavy column
     count: 1
     only-when-accelerating: true
 ```
 
 ---
 
-## Rail Compatibility | 铁轨兼容性
+## Rail Compatibility
 
-HikariVehicle is designed to coexist with rail transit plugins:
+HikariVehicle is designed to coexist with rail-transit plugins:
 
-- Minecarts placed on rails use vanilla/plugin rail behavior
-- Minecarts placed on ground use HikariVehicle driving
-- If a driving vehicle enters a rail, it automatically exits driving mode
+- Minecarts on rails use vanilla / rail-plugin behavior.
+- Minecarts on the ground use HikariVehicle driving.
+- Driving onto a rail **hands the cart back to rail behavior with the rider still aboard** (you are no longer ejected). Re-mount on the ground to resume driving.
 
 ---
 
-## Building | 构建
+## Building
 
 ```bash
-git clone https://github.com/your-repo/HikariVehicle.git
+git clone https://github.com/HyacinthHaru/HikariVehicle.git
 cd HikariVehicle
 mvn clean package
 ```
@@ -180,12 +186,12 @@ The compiled JAR will be in `target/HikariVehicle-x.x.x.jar`.
 
 ---
 
-## License | 许可证
+## License
 
-This project is licensed under the MIT License.
+Licensed under the MIT License — see [LICENSE](LICENSE).
 
 ---
 
-## Credits | 致谢
+## Credits
 
-Developed for HikariCraft server.
+Developed for the HikariCraft server.
