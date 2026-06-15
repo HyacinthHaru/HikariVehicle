@@ -18,3 +18,6 @@ permissions:
   hikarivehicle.drive:
     description: Permission to drive vehicles
     default: true
+  hikarivehicle.place:
+    description: Permission to place minecarts on the ground
+    default: true

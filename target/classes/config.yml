@@ -117,9 +117,9 @@ effects:
   # Exhaust particles
   exhaust:
     enabled: true
-    # Particle type
-    type: CAMPFIRE_SIGNAL_SMOKE
-    # Number of particles per tick
+    # Particle type. SMOKE is a light trail; CAMPFIRE_SIGNAL_SMOKE is the heavy column.
+    type: SMOKE
+    # Particles per emission (emitted every other tick to keep the trail light)
     count: 1
     # Only show when accelerating
     only-when-accelerating: true

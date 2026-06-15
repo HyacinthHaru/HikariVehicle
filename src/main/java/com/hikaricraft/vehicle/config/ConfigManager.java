@@ -229,12 +229,12 @@ public class ConfigManager {
     private void loadEffects() {
         exhaustEnabled = config.getBoolean("effects.exhaust.enabled", true);
 
-        String particleName = config.getString("effects.exhaust.type", "CAMPFIRE_SIGNAL_SMOKE");
-        if (particleName == null) particleName = "CAMPFIRE_SIGNAL_SMOKE";
+        String particleName = config.getString("effects.exhaust.type", "SMOKE");
+        if (particleName == null) particleName = "SMOKE";
         try {
             exhaustType = Particle.valueOf(particleName.toUpperCase());
         } catch (IllegalArgumentException e) {
-            exhaustType = Particle.CAMPFIRE_SIGNAL_SMOKE;
+            exhaustType = Particle.SMOKE;
             plugin.getLogger().warning("Invalid particle type: " + particleName);
         }
 

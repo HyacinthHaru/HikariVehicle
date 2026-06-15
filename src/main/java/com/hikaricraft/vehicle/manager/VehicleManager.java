@@ -71,6 +71,12 @@ public class VehicleManager {
     private static final double COLLISION_CHECK_RADIUS = 1.0;
     /** Squared distance below which a knockback direction is considered degenerate. */
     private static final double KNOCKBACK_MIN_DISTANCE_SQ = 1.0e-4;
+    /** Emit exhaust only every N ticks, to thin out the smoke trail. */
+    private static final int EXHAUST_INTERVAL_TICKS = 2;
+    /** Skip a rotation update when the heading barely moved (cuts redundant entity packets). */
+    private static final double ROTATION_UPDATE_THRESHOLD_DEG = 1.0;
+    /** Below this squared horizontal speed a stopped cart is left alone (no idle velocity packet). */
+    private static final double STOPPED_DRIFT_EPSILON_SQ = 1.0e-6;
 
     private final HikariVehicle plugin;
     private final ConfigManager config;
@@ -338,9 +344,10 @@ public class VehicleManager {
      * @return true if the vehicle was destroyed and should be removed
      */
     private boolean tickVehicle(Minecart minecart, Player player, VehicleData data) {
-        // 0. Rail check — let vanilla / rail-transit handle carts on rails.
+        // 0. Rail check — hand the cart over to vanilla / rail-transit, keeping
+        //    the rider aboard instead of dumping them off the track.
         if (RailUtils.isRail(minecart.getLocation().getBlock().getType())) {
-            minecart.removePassenger(player);
+            handOffToRail(minecart, data);
             return true;
         }
 
@@ -420,15 +427,29 @@ public class VehicleManager {
             double vz = Math.cos(rad) * speed / TICKS_PER_SECOND;
             double vy = minecart.getVelocity().getY();
 
-            // Step-up check.
+            // Step-up check (may zero the speed when blocked by a wall).
             Location nextPos = minecart.getLocation().clone().add(vx, 0, vz);
             vy = handleStepUp(minecart, nextPos, vy, data);
+            if (data.getSpeed() <= 0) {
+                // Wall hit this tick — drop the horizontal push so we don't lurch into it.
+                vx = 0;
+                vz = 0;
+            }
 
             minecart.setVelocity(new Vector(vx, vy, vz));
-            minecart.setRotation((float) data.getHeading(), 0f);
+            // Only push a rotation update when the heading actually changed; redundant
+            // per-tick rotation updates aggravate the client/vehicle packet churn at speed.
+            if (Math.abs(normalizeAngle(minecart.getLocation().getYaw() - data.getHeading()))
+                    > ROTATION_UPDATE_THRESHOLD_DEG) {
+                minecart.setRotation((float) data.getHeading(), 0f);
+            }
         } else {
+            // Stopped: only cancel genuine residual drift; don't re-send a no-op
+            // velocity every tick while the cart is parked.
             Vector v = minecart.getVelocity();
-            minecart.setVelocity(new Vector(0, v.getY(), 0));
+            if (v.getX() * v.getX() + v.getZ() * v.getZ() > STOPPED_DRIFT_EPSILON_SQ) {
+                minecart.setVelocity(new Vector(0, v.getY(), 0));
+            }
         }
 
         // 8. Collision.
@@ -443,8 +464,9 @@ public class VehicleManager {
             }
         }
 
-        // 10. Exhaust particles.
-        if (config.isExhaustEnabled() && speed > 0) {
+        // 10. Exhaust particles (throttled to keep the smoke trail light).
+        if (config.isExhaustEnabled() && speed > 0
+                && minecart.getTicksLived() % EXHAUST_INTERVAL_TICKS == 0) {
             if (!config.isExhaustOnlyWhenAccelerating() || input.forward()) {
                 spawnExhaust(minecart, data);
             }
@@ -500,13 +522,14 @@ public class VehicleManager {
         UUID driverId = driver.getUniqueId();
         activeVehicles.remove(minecartId);
 
-        // Snapshot the drops *before* removing the entity: the matching cart
-        // variant item (chest/furnace/hopper/TNT, not always a plain minecart)
-        // plus any inventory contents, so destroying a chest cart no longer
-        // silently eats the items inside it.
+        // Snapshot the drops *before* removing the entity. The cart variant item
+        // (chest/furnace/hopper/TNT, not always a plain minecart) is only returned
+        // when this destruction is meant to drop it; the cargo is returned whenever
+        // there is a drop location — even a scrapped (durability) cart shouldn't
+        // silently eat the player's items.
         Material cartItem = minecartItem(minecart.getType());
         List<ItemStack> contents = new ArrayList<>();
-        if (dropMinecartItem && minecart instanceof InventoryHolder holder) {
+        if (dropAt != null && minecart instanceof InventoryHolder holder) {
             for (ItemStack stack : holder.getInventory().getContents()) {
                 if (stack != null && !stack.getType().isAir()) {
                     contents.add(stack.clone());
@@ -517,8 +540,10 @@ public class VehicleManager {
         minecart.removePassenger(driver);
         minecart.remove();
 
-        if (dropMinecartItem && dropAt != null && dropAt.getWorld() != null) {
-            dropAt.getWorld().dropItemNaturally(dropAt, new ItemStack(cartItem));
+        if (dropAt != null && dropAt.getWorld() != null) {
+            if (dropMinecartItem) {
+                dropAt.getWorld().dropItemNaturally(dropAt, new ItemStack(cartItem));
+            }
             for (ItemStack stack : contents) {
                 dropAt.getWorld().dropItemNaturally(dropAt, stack);
             }
@@ -706,7 +731,8 @@ public class VehicleManager {
 
             if (data.getDurability() <= 0) {
                 player.sendMessage(LEGACY.deserialize(config.getMessage("vehicle-destroyed")));
-                destroyCart(minecart, player, false, null);
+                // Cart is scrapped (no cart item) but its cargo is still returned.
+                destroyCart(minecart, player, false, minecart.getLocation().clone());
                 return true;
             }
 
@@ -755,6 +781,21 @@ public class VehicleManager {
         if (angle > 180.0) angle -= 360.0;
         else if (angle <= -180.0) angle += 360.0;
         return angle;
+    }
+
+    /**
+     * Leave the cart on the rail with its passenger still aboard, restoring vanilla
+     * minecart behaviour so rail physics / RailTransit can take over. Unlike a normal
+     * exit this does NOT eject the driver. Removing it from the active set first makes
+     * the subsequent cleanup pass a no-op (so cleanupVehicle won't eject either).
+     */
+    private void handOffToRail(Minecart minecart, VehicleData data) {
+        data.saveToEntity(minecart);
+        activeVehicles.remove(minecart.getUniqueId());
+        minecart.setMaxSpeed(VANILLA_MAX_SPEED);
+        minecart.setSlowWhenEmpty(true);
+        minecart.setDerailedVelocityMod(new Vector(
+                VANILLA_DERAILED_VELOCITY_MOD, VANILLA_DERAILED_VELOCITY_MOD, VANILLA_DERAILED_VELOCITY_MOD));
     }
 
     /**

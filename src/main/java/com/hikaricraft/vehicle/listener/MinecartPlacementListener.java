@@ -31,6 +31,7 @@ public class MinecartPlacementListener implements Listener {
 
         ItemStack item = event.getItem();
         if (item == null || !isMinecart(item.getType())) return;
+        if (!event.getPlayer().hasPermission("hikarivehicle.place")) return;
 
         Block clickedBlock = event.getClickedBlock();
         if (clickedBlock == null) return;
